@@ -1,0 +1,54 @@
+Client Logic
+1.	Calculate Viewport Requirement
+Parameters to Coordinator
+1.	Viewport Information
+2.	CollapsedNode
+a.	CollapsedNode.ParentID
+b.	CollapsedNode.ID
+c.	CollapsedNode.TreeDepth
+d.	CollapsedNode.ChildCount
+e.	CollapsedNode.SortID
+f.	CollapsedNode.StageDate
+Coordinator Logic
+1.	Remove Segments
+a.	Find the CollapsedNodeSegment record from the TreeSegment table as follows:
+i)	CollapsedNode.ParentID = TreeSegment.ParentID
+ii)	CollapsedNode.StageDate = TreeSegment.StageDate
+iii)	CollapsedNode.SortID is between (or equal to) TreeSegment.FirstSortID and TreeSegment.LastSortID
+b.	Determine if the CollapsedNode is the last sibling node. (Sibling nodes all share the same ParentID) 
+i)	Find the last TreeSegment record (LastSiblingSegment) that has the same ParentID as CollapsedNodeSegment.ParentID.
+ii)	If LastSiblingSegment.SegmentID = CollapsedNodeSegment.SegmentID and CollapsedNode.SortID = CollapsedNodeSegment.LastSortID then LastNode = true. Otherwise, LastNode = false.
+c.	If the CollapsedNode is not the last sibling node, then the CollapsedNodeSegment record must be merged.
+i)	MergeIsRequired is the Boolean opposite of LastNode
+d.	If MergeIsRequired = true, 
+i)	find the SplitSegment. The Split Segment is the first record after the CollapsedNodeSegment that has the same ParentID as CollapsedNodeSegment.ParentID.
+ii)	Merge the CollapsedNodeSegment with the SplitSegment.
+(1)	CollapsedNodeSegment.RecordCount = CollapsedNodeSegment.RecordCount + SplitSegment.RecordCount
+(2)	CollapsedNodeSegment.LastTreeRow = CollapsedNodeSegment.FirstTreeRow + CollapsedNodeSegment.RecordCount – 1
+(3)	CollapsedNodeSegment.LastSortID = CollapsedNodeSegment.FirstSortID + CollapsedNodeSegment.RecordCount – 1.
+iii)	Delete SplitSegment.
+e.	Loop through each segment after CollapsedNodeSegment and delete each segment that has a TreeDepth that is lower (greater than) than CollapsedNodeSegment.TreeDepth. Stop looping when you reach the first segment that has a TreeDepth equal to CollapsedNodeSegment.TreeDepth and do not delete it. Add up the RecordCount of each deleted segment and put the final count in DeletedRows. Tally each deleted segment in DeletedSegments.
+f.	Shift subsequent segments up
+i)	For each record after the above mentioned deleted records, shift the attributes up
+(1)	If SplitSegment = true then DeletedSegments = DeletedSegments + 1
+(2)	SegmentPosition = SegmentPosition - DeletedSegments
+(3)	FirstTreeRow = FirstTreeRow - DeletedRows
+(4)	LastTreeRow = LastTreeRow - DeletedRows
+2.	Update Tree Row Count
+a.	TreeRowCount = TreeRowCount - DeletedRows
+3.	Copy Intersecting Segments
+4.	Apply Offsets
+5.	Prepare Database Parameters
+Parameters to Database
+1.	Query List
+2.	Column Range
+Database Logic
+1.	Get Query Results
+Response from Database
+1.	Return Query Results
+Response from Coordinator
+1.	Return Query Results
+2.	Return Tree Row Count
+Client Rendering
+1.	Assign Tree Row Count
+2.	Render Query Results

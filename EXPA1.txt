@@ -1,0 +1,106 @@
+Client Logic
+1.	Calculate Viewport Requirement
+Parameters to Coordinator
+1.	Viewport Information
+2.	Expanded Node
+a.	ExpandedNode.ParentID
+b.	ExpandedNode.ID
+c.	ExpandedNode.TreeDepth
+d.	ExpandedNode.ChildCount
+e.	ExpandedNode.SortID
+f.	ExpandedNode.StageDate
+Coordinator Logic
+1.	Add Segments
+a.	Find the ExpandedNodeSegment record from the TreeSegment table as follows:
+i)	ExpandedNode.ParentID = TreeSegment.ParentID
+ii)	ExpandedNode.StageDate = TreeSegment.StageDate
+iii)	ExpandedNode.SortID is between (or equal to) TreeSegment.FirstSortID and TreeSegment.LastSortID
+b.	Determine if the ExpandedNode is the last sibling node. (Sibling nodes all share the same ParentID) 
+i)	Find the last TreeSegment record (LastSiblingSegment) that has the same ParentID as ExpandedNodeSegment.ParentID.
+ii)	If LastSiblingSegment.SegmentID = ExpandedNodeSegment.SegmentID and ExpandedNode.SortID = ExpandedNodeSegment.LastSortID then LastNode = true. Otherwise, LastNode = false.
+c.	If the ExpandedNode is not the last sibling node, then the ExpandedNodeSegment record must be split.
+i)	SplitIsRequired is the Boolean opposite of LastNode
+d.	Query any staged segments from the PerParentSequence table where ParentID = ExpandedNode.ID
+SELECT ParentID, StageDate, CurrentSequenceNumber
+FROM PerParentSequence
+WHERE ParentID = ExpandedNode.ID
+ORDER BY StageDate
+ 
+e.	InsertedRows is the sum of queried PerParentSequence.CurrentSequenceNumber plus ExpandedNode.ChildCount.
+f.	Calculate split position in ExpandedNodeSegment
+i)	NodesBeforeInsert = ExpandedNode.SortID – ExpandedNodeSegment.FirstSortID + 1
+ii)	NodesAfterInsert = ExpandedNodeSegment.LastSortID - ExpandedNode.SortID
+g.	If SplitIsRequired = true, modify certain attributes of the ExpandedNodeSegment record
+i)	SegmentID – no change.
+ii)	ParentSegmentID – no change
+iii)	SegmentPosition – no change
+iv)	ParentID – no change
+v)	TreeDepth – no change
+vi)	StageDate – no change
+vii)	RecordCount = NodesBeforeInsert
+viii)	FirstTreeRow – no change
+ix)	LastTreeRow = FirstTreeRow + NodesBeforeInsert - 1
+x)	FirstSortID – no change
+xi)	LastSortID = FirstSortID + NodesBeforeInsert - 1
+h.	Insert any staged segments
+i)	For each PerParentSequenceRecord queried from PerParentSequence, insert a record into the TreeSegment table, assigning each attribute as follows:
+(1)	SegmentID – Use 1 for the first record in the table. Increment subsequent records by 1. (This is a unique, auto-incrementing ID.)
+(2)	ParentSegmentId = ExpandedNodeSegment.SegmentID
+(3)	SegmentPosition = increment the previous record’s SegmentPosition by 1
+(4)	ParentId = ExpandedNode.ID
+(5)	TreeDepth = ExpandedNode.TreeDepth + 1
+(6)	StageDate = PerParentSequenceRecord.StageDate
+(7)	RecordCount = PerParentSequenceRecord.CurrentSequenceNumber
+(8)	FirstTreeRow – Use the previous record’s LastTreeRow + 1.
+(9)	LastTreeRow – Use this record’s FirstTreeRow + PerParentSequenceRecord.CurrentSequenceNumber – 1
+(10)	FirstSortID = 1
+(11)	LastSortID = PerParentSequenceRecord.CurrentSequenceNumber
+i.	Insert processed segment
+i)	Add one record to TreeSegment table, assigning each attribute
+(1)	SegmentID = Use 1 for the first record in the table. Increment subsequent records by 1. (This is a unique, auto-incrementing ID.)
+(2)	ParentSegmentID = ExpandedNodeSegment.SegmentID
+(3)	SegmentPosition = increment the previous record’s SegmentPosition by 1
+(4)	ParentID = ExpandedNode.ID
+(5)	TreeDepth = ExpandedNode.TreeDepth + 1
+(6)	StageDate = ‘1900-01-01’ (the logical equivalent of NULL)
+(7)	RecordCount = ExpandedNode.ChildCount
+(8)	FirstTreeRow - Use the previous record’s LastTreeRow + 1.
+(9)	LastTreeRow - Use this record’s FirstTreeRow + PerParentSequenceRecord.CurrentSequenceNumber – 1
+(10)	FirstSortID = 1
+(11)	LastSortID = ExpandedNode.ChildCount
+j.	If SplitIsRequired = true, insert a SplitSegment
+i)	Add one record to the TreeSegment table, assigning each attribute
+(1)	SegmentID – Auto-increment
+(2)	ParentSegmentID = ExpandedNodeSegment.ParentSegmentID
+(3)	SegmentPosition = increment the previous record’s SegmentPosition by 1
+(4)	ParentID = ExpandedNodeSegment.ParentID
+(5)	TreeDepth = ExpandedNodeSegment.TreeDepth
+(6)	StageDate = ExpandedNodeSegment.StageDate
+(7)	RecordCount = NodesAfterInsert
+(8)	FirstTreeRow = Use the previous record’s LastTreeRow + 1
+(9)	LastTreeRow = Use this record’s FirstTreeRow + NodesAfterInsert – 1
+(10)	FirstSortID = ExpandedNodeSegment.FirstSortID + NodesAfterInsert.
+(11)	LastSortID = NodesBeforeInsert + NodesAfterInsert
+k.	Shift subsequent segments down
+i)	For each record after the above mentioned record, shift the attributes down
+(1)	SegmentPosition – increment the previous record’s segment position by one
+(2)	FirstTreeRow = FirstTreeRow + InsertedRows
+(3)	LastTreeRow = LastTreeRow + InsertedRows 
+2.	Update Tree Row Count
+a.	TreeRowCount = TreeRowCount + InsertedRows
+3.	Copy Intersecting Segments
+4.	Apply Offsets
+5.	Prepare Database Parameters
+Parameters to Database
+1.	Query Results
+2.	Column Range
+Database Logic
+1.	Get Query Results
+Response from Database
+1.	Return Query Results
+Response from Coordinator
+1.	Return Query Results
+2.	Return Tree Row Count
+Client Rendering
+1.	Assign Tree Row Count
+2.	Render Query Results

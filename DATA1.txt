@@ -1,0 +1,84 @@
+Operations Table Layout
+Column	Data Type	Partition	Description
+ID	Int/GUID		Auto-generated unique identifier (Primary Key)
+ParentID	Int/ GUID	Yes	Identifies parent node
+HasChildren	Bit		Bit flag to indicate presence of children. Activates the node’s Expand/Collapse function
+Name	Character		The node’s display name
+InsertDate	Date		The date the record was inserted
+
+Reporting Table Layout
+Column	Data Type	Clust	Partition	Description
+ID	Int/GUID			Unique identifier
+ParentID	Int/GUID	Yes	Yes	Clustered Index Column 1
+SortID	Int	Yes		Custom Sort (Clustered Index Column 2).
+HasChildren	Bit			Bit flag to indicate presence of children. Activates the node’s Expand/Collapse function
+ChildCount	Int			Required for managing Tree Segments
+Name	Character			The node’s display name
+
+ControlTable Table Layout
+Column	Data Type	Description
+StageDate	Date	The date the records were staged
+Processed	Bit	True when the date has been processed
+
+StagedInserts Table Layout
+Column	Data Type	Partition	Description
+ID	Int/GUID		Unique identifier (Primary Key)
+ParentID	Int/GUID	Partition	Identifies the parent node
+SortID	Int		Custom sort order (Clustered Index)
+HasChildren	Bit		Indicates if the node has child nodes (Bit flag). Activates the node’s Expand/Collapse function
+ChildCount	Int		Required for managing Tree Segments
+Name	Character		The node’s display name
+StageDate	Date	Nested partition	The date the record was inserted. Partition column.
+
+StagedDeletions Table Layout
+Column	Data Type	Partition	Description
+ID	Int/GUID		This is the ID of the deleted record
+ParentID	Int/GUID	Partition	
+DeleteType	Character		Enter “D” when a record is deleted. Enter “U” when a record is updated. Enter “M” when a record is moved under a different parent.
+StageDate	Date	Nested partition	The date the record was deleted. Partition this column.
+
+PerParentSequence Table
+Column	Data Type	Partition	Description
+ParentID	Int/GUID	Partition	Identifies the parent node
+Current
+Sequence
+Number	Int		The next sequence number for that ParentID
+StageDate	Date	Nested partition	The date the record was inserted or updated. Consider partitioning by this column.
+
+ColumnMetaData Table
+Column	Data Type	Description
+ID	Int/GUID	Unique identifier
+TableName	Character	The table name in the database
+ColumnName	Character	The column name in the database
+ColumnIndex	Int	The sort order of the column evaluated against FirstVisibleColumn and LastVisibleColumn
+ReportName	Character	A report-friendly column name
+
+PerParentSequenceGenerator Stored Procedure 
+Procedure Parameters:
+Parameter	Data Type	Direction	Description
+ParentID	Int/GUID	In	The ParentID for which to get the next sequence
+Current
+Sequence
+Number	Int	Out	The next sequence number to use
+Procedure Steps:
+1.	Check if a record exists for the ParentID for the current StageDate (StageDate = Today()).
+a.	If the ParentID is in the table for the current StageDate, lock the row and increment the sequence number.
+b.	If the ParentID is not in the table for the current StageDate, insert a new record with the ParentID and CurrentSequenceNumber = 1.
+2.	Commit the transaction, releasing the lock.
+3.	Return the new sequence number for the current StageDate to the caller.
+
+TableMaintenance Stored Procedure
+Steps:
+1.	Get yesterday’s snapshot from the Operations table by selecting all InsertDates less than today and placing it in a #TemporaryTable.
+2.	Delete records in the #TemporaryTable that are also in StagedDeletions.
+3.	Substitute records in the #TemporaryTable with records in StagedInserts if the IDs match.
+4.	Update HasChildren and ChildCount columns.
+5.	Populate any other precomputed or denormalized columns
+6.	Populate the SortID with a row number partitioned by ParentID and sorted by Name.
+7.	Create a clustered index on the #TemporaryTable on ParentID and SortID to match the clustered index in the Reporting table.
+8.	Begin Transaction
+a.	Replace the data in the  Reporting table with the data in the #TemporaryTable. 
+b.	Unload partition for the previous StageDate from the StagedDeletions, StagedInserts and PerParentSequence tables. 
+c.	Do not remove partitions for the current StageDate as those partitions are currently in use for reporting purposes.
+d.	Mark previous StageDate as processed in your ControlTable. 
+9.	End Transaction

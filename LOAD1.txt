@@ -1,0 +1,151 @@
+Logic Performed by Client Tree View
+1.	Calculate Viewport Requirement
+a.	TreeView.RowsPerViewport = Math.ceil(ViewportHeight / RowHeight
+b.	TreeView.ColumnsPerViewport = Math.ceil(ViewportWidth / ColumnWidth
+Parameters Passed to Coordination Layer
+1.	Viewport Information
+a.	TreeView.RowsPerViewport
+b.	TreeView.ColumnsPerViewport
+c.	TreeView.FirstVisibleRow
+d.	TreeView.FirstVisibleColumn 
+2.	Root ID
+a.	TreeView.RootID
+Logic Performed by Coordination Layer 
+IMPORTANT: The TreeSegment table and the TreeRowCount variable must persist for the duration of the user session.
+1.	Clear Segment Table
+a.	Clear the TreeSegment table (required for resetting the tree view)
+2.	Add Root Segments
+a.	Add Any Staged Root Segments
+i)	Query any staged segments from the PerParentSequence table where ParentID = TreeView.RootID
+SELECT ParentID, StageDate, CurrentSequenceNumber
+FROM PerParentSequence
+WHERE ParentID = TreeView.RootID
+ORDER BY StageDate
+ii)	For each PerParentSequenceRecord returned from PerParentSequence, insert a record into the TreeSegment table, assigning each attribute as follows:
+(1)	SegmentID – Use 1 for the first record in the table. Increment subsequent records by 1. (This is a unique, auto-incrementing ID.)
+(2)	ParentSegmentId = 0
+(3)	SegmentPosition = Use 1 for the first record in the table. Increment subsequent records by 1.
+(4)	ParentID = TreeView.RootID
+(5)	TreeDepth = 1
+(6)	StageDate = PerParentSequenceRecord.StageDate
+(7)	RecordCount = PerParentSequenceRecord.CurrentSequenceNumber
+(8)	FirstTreeRow = Use 1 for the first record in the table. For subsequent records in the table, use the previous record’s LastTreeRow + 1.
+(9)	LastTreeRow = Use this record’s FirstTreeRow + PerParentSequenceRecord.CurrentSequenceNumber - 1
+(10)	FirstSortID = 1
+(11)	LastSortID = PerParentSequenceRecord.CurrentSequenceNumber
+b.	Add Processed Root Segment
+i)	Get the highest SortID from Reporting table where ParentID = TreeView.RootID and assign it to variable CountProcessedRecords.
+SELECT CountProcessedRootNodes = MAX(SortID)
+FROM Reporting
+WHERE ParentID = RootID
+ii)	Add one record to TreeSegment table, assigning each attribute as follows:
+(1)	SegmentID – Use 1 for the first record in the table. Increment subsequent records by 1. (This is a unique, auto-incrementing ID.)
+(2)	ParentSegmentID = 0
+(3)	SegmentPosition – Use 1 for the first record in the table. Increment subsequent records by 1.
+(4)	ParentID = TreeView.RootID
+(5)	TreeDepth = 1 
+(6)	StageDate = ‘1900-01-01’ (the logical equivalent of NULL)
+(7)	RecordCount = CountProcessedRootNodes
+(8)	FirstTreeRow – Use 1 for the first record in the table. For subsequent records in the table, use the previous record’s LastTreeRow + 1.
+(9)	LastTreeRow - Use this record’s FirstTreeRow +  CountProcessedRootNodes - 1
+(10)	FirstSortID = 1
+(11)	LastSortID = CountProcessedRootNodes
+3.	Update Tree Row Count. (The TreeRowCount session variable of the Coordination Layer holds the sum of all RecordCount values in the TreeSegment table.)
+a.	TreeRowCount = TreeRowCount plus the sum of each PerParentSequenceRecord.CurrentSequenceNumber plus CountProcessedRootNodes.
+4.	Copy Intersecting Segments
+a.	Calculate LastVisibleRow:
+TreeView.FirstVisibleRow + TreeView.RowsPerViewport - 1
+b.	Get segments that intersect with the requested viewport:
+TreeView.FirstVisibleRow ≤ TreeSegment.LastTreeRow
+AND
+TreeView.LastVisibleRow ≥ TreeSegment.FirstTreeRow
+c.	Copy objects into a list called IntersectingSegments.
+5.	Apply Offsets to IntersectingSegments:
+a.	Get the FirstRecord record in IntersectingSegments
+b.	Get the LastRecord record in IntersectingSegments
+c.	Calculate the offsets
+i)	OffsetFirst = FirstRecord.FirstTreeRow – FirstRecord.FirstSortID
+ii)	OffsetLast = LastRecord.FirstTreeRow - LastRecord.FirstSortID
+d.	Apply the offsets
+i)	FirstRecord.FirstSortID = TreeView.FirstVisibleRow – OffsetFirst
+ii)	LastRecord.LastSortID = (TreeView.FirstVisibleRow + TreeView.RowsPerViewport – 1) - OffsetLast
+6.	Prepare Database Parameters
+a.	Query List
+i)	For each IntersectingSegmentsRecord in IntersectingSegments into a new record in the QueryList table parameter
+(1)	RowNumber - Auto-increment by 1, starting at 1.
+(2)	StageDate = IntersectingSegmentsRecord.StageDate
+(3)	ParentID = IntersectingSegmentsRecord.ParentID
+(4)	FirstSortID = IntersectingSegmentsRecord.FirstSortID
+(5)	LastSortID = IntersectingSegmentsRecord.LastSortID
+(6)	TreeDepth = IntersectingSegmentsRecord.TreeDepth
+b.	Column Range (Include these parameters if you implement column virtualization)
+i)	FirstVisibleColumn = TreeView.FirstVisibleColumn
+ii)	ColumnsPerViewPort = TreeView.ColumnsPerViewport
+Parameters Passed to Database
+1.	Query List (QueryList is a table parameter with 1 or more rows that is passed to the database)
+Row Number	StageDate	Parent ID	First Sort ID	Last Sort ID	Tree Level
+Int	Date	Int	Int	Int	Int
+2.	Column Range (These are integer parameters that are passed to the database. Include these parameters if you implement column virtualization)
+a.	FirstVisibleColumn 
+b.	ColumnsPerViewport 
+Logic Performed by Database
+1.	Get Query Results
+a.	Use these instructions if your tree view has static columns (rather than virtualized columns). Static columns are suitable for tree views with few columns.
+i)	Create a table variable called ConsolidatedQueryResults.
+ii)	For each QueryListRecord in the QueryList table parameter, run an insert query. 
+(1)	If QueryListRecord.StageDate is 1900-01-01 (the logical equivalent of NULL), query the Reporting table and use 1900-01-01 for the StageDate.
+INSERT INTO ConsolidatedQueryResults 
+(ParentID, ID, TreeDepth, SortID, HasChildren, ChildCount, StageDate, IsExpanded...)
+SELECT ParentID, ID, QueryListRecord.TreeDepth, SortID, HasChildren, ChildCount, ‘1900-01-01’, 0...
+FROM Reporting r
+WHERE r.ParentID = QueryListRecord.ParentID
+AND r.SortID BETWEEN QueryListRecord.FirstSortID and QueryListRecord.LastSortID
+(2)	If QueryList.StageDate is a valid date, query the StagedInserts table
+INSERT INTO ConsolidatedQueryResults 
+(ParentID, ID, TreeDepth, SortID, HasChildren, ChildCount, StageDate, IsExpanded...)
+SELECT ParentID, ID, QueryListRecord.TreeDepth, SortID, HasChildren, ChildCount, StageDate, 0...
+FROM StagedInserts r
+WHERE r.ParentID = QueryListRecord.ParentID
+AND r.SortID BETWEEN QueryListRecord.FirstSortID and QueryListRecord.LastSortID
+And r.StageDate = QueryListRecord.StageDate
+ORDER BY SortID
+iii)	For each ResultsRecord in ConsolidatedQueryResults
+(1)	If ResultsRecord.ID = StagedDeletions.ID and StagedDeletions.DeleteType = ‘D’, substitute ResultsRecord.Name with “#Deleted#”.
+(2)	If ResultsRecord.ID = StagedDeletions.ID and StagedDeletions.DeleteType = ‘U’, substitute the entire ResultsRecord with the record with the same ID in the StagedInserts table.
+(3)	If ResultsRecord.ID = StagedDeletions.ID and StagedDeletions.DeleteType = ‘M’, substitute ResultsRecord.Name with “#Moved#”.
+(4)	If ResultsRecord.HasChildren = 0 and ResultsRecord.ParentID = PerParentSequence.ParentID set ResultsRecord.HasChildren = 1.
+(5)	If ResultsRecord.ID is in the list of ParentID in the QueryList, set ResultsRecord.IsExpanded = 1
+iv)	Return ConsolidatedQueryResults. 
+b.	If your tree view has many columns and you are implementing column virtualization, write the same logic outlined for static columns – but use dynamic SQL instead of static SQL
+i)	Use TreeView.FirstVisibleColumn and TreeView.ColumnsPerViewport to look up database column names against your ColumnMetaData table.
+ii)	Write dynamic SQL. Write a SELECT statement for each record in the QueryList table parameter separated by UNION ALL, OR if you don’t want to use UNION ALL, write an INSERT INTO #YourSessionScopedTemporaryTable … SELECT statement for each record in the QueryList table parameter.
+iii)	Execute dynamic SQL and return results.
+Response from Database
+1.	Return Query Results
+Response from Coordinator
+1.	Return Query Results. 
+2.	Return Tree Row Count
+a.	Use the TreeRowCount variable maintained by the Coordination Layer.
+Client Rendering
+1.	Assign Tree Row Count
+a.	Assign Tree Row Count to TreeView.TreeRowCount
+2.	Render Query Results
+a.	Clear contents of tree view
+b.	Create cells for column headers
+i)	Populate column headings with the help of your ColumnMetaData table.
+c.	For each QueryResultsRecord in query results, create a new row (or “node”) in the tree view. (If your tree view has a Frozen Columns section and a Scrollable Columns section, you will need one row for each section)
+i)	Vertically position the row based on row index times TreeView.RowHeight 
+ii)	Add Expand icon, Collapse icon, or invisible icon based on QueryResultsRecord.HasChildren and QueryResultsRecord.IsExpanded attributes
+iii)	For each visible field in the QueryResultsRecord
+(1)	Create a cell, populate with record attribute
+(2)	Horizontally position each cell based on column index times TreeView.ColumnHeight
+iv)	Indent the first cell containing the QueryResultsRecord.Name based on QueryResultsRecord.TreeDepth
+v)	Attach each hidden attributes to the row
+vi)	QueryResultsRecord.ParentID
+i)	QueryResultsRecord.ID 
+ii)	QueryResultsRecord.TreeDepth
+iii)	QueryResultsRecord.SortID
+iv)	QueryResultsRecord.HasChildren
+v)	QueryResultsRecord.ChildCount
+vi)	QueryResultsRecord.StageDate
+vii)	QueryResultsRecord.IsExpanded

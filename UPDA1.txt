@@ -1,0 +1,27 @@
+Triggering Event
+1.	The user edits a node or moves it under a different parent node
+Client Logic
+1.	Your Client-side Validation
+Parameters to Coordinator
+1.	Updated Record
+a.	UpdatedRecord
+Coordinator Logic
+1.	Your Server-side Validation
+Parameters to Database
+1.	Updated Record
+a.	UpdatedRecord
+Database Logic
+1.	Perform Update
+a.	Add UpdatedRecord.ID to StagedDeletions. 
+i)	If the ParentID is different, DeleteType = ‘M’. 
+ii)	If the ParentID is the same, DeleteType = ‘U’.
+b.	Update Operations table with new attributes
+c.	UPSERT the StagedInserts table with the attributes from UpdatedRecord. Use the original ID.
+Response from Database
+1.	Return Success/Error Status
+Response from Coordinator
+1.	Return Success/Error Status
+Client Rendering
+1.	Display Record as Moved
+a.	If the node moved under a different ParentID, change UpdatedRecord.Name to “#Moved#”.
+2.	Display Success/Error Status

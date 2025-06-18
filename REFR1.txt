@@ -1,0 +1,29 @@
+Parameters to Coordinator
+1.	Viewport Information
+2.	RefreshedNode (the Parent Node)
+a.	RefreshedNode.ParentID
+b.	RefreshedNode.ID
+c.	RefreshedNode.TreeDepth
+d.	RefreshedNode.ChildCount
+e.	RefreshedNode.SortID
+f.	RefreshedNode.StageDate
+Coordinator Logic
+1.	Remove Segments (but use RefreshedNode in place of CollapsedNode)
+2.	Add Segments (but use RefreshedNode in place of ExpandedNode)
+3.	Update Tree Row Count (follow guidance in Collapsing a Node and Expanding a Node to remove and add rows to TreeRowCount)
+4.	Copy Intersecting Segments
+5.	Apply Offsets
+6.	Prepare Database Parameters
+Parameters to Database
+1.	Query List
+2.	Column Range
+Database Logic
+1.	Get Query Results
+Response from Database
+1.	Return Query Results
+Response from Coordinator
+1.	Return Query Results
+2.	Return Tree Row Count
+Client Rendering
+1.	Assign Tree Row Count
+2.	Render Query Results

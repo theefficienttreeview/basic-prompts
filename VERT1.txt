@@ -1,0 +1,32 @@
+Client Logic
+1.	Calculate Viewport Requirement
+2.	Calculate First Visible Row (TreeView.FirstVisibleRow) based on the specific scroll event:
+a.	Scroll Down Arrow / Mouse Wheel Down: 
+TreeView.FirstVisibleRow + TreeView.RowIncrementor
+b.	Scroll Up Arrow / Mouse Wheel Up: 
+TreeView.FirstVisibleRow - TreeView.RowIncrementor
+c.	Drag Scroll Handle: 
+Math.floor(TreeView.TreeRowCount * (TreeView.VerticalScrollbarPosition/ TreeView.NetVerticalScrollbarRange))
+d.	Click Scroll Track Below Handle: 
+TreeView.FirstVisibleRow + Math.floor(TreeView.ViewportHeight / TreeView.RowHeight)
+e.	Click Scroll Track Above Handle: 
+TreeView.FirstVisibleRow - Math.floor(TreeView.ViewportHeight / TreeView.RowHeight)
+Parameters to Coordinator
+1.	Viewport Information
+Coordinator Logic
+1.	Copy Intersecting Segments
+2.	Apply Offsets
+3.	Prepare Database Parameters
+Parameters to Database
+1.	Query List
+2.	Column Range
+Database Logic
+1.	Get Query Results
+Response from Database
+1.	Return Query Results
+Response from Coordination Layer
+1.	Return Query Results
+2.	Return Tree Row Count
+Client Rendering
+1.	Assign Tree Row Count
+2.	Render Query Results
