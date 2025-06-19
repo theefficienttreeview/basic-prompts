@@ -1,0 +1,42 @@
+The Efficient Tree View (AI Prompts and Sample Code)
+
+Copyright (c) 2025 Peder Myhre. All rights reserved.
+
+This repository contains AI prompts, pseudocode, and sample code excerpts from the book The Efficient Tree View.
+
+1. LICENSE SUMMARY
+
+This content is dual-licensed depending on your use case:
+
+A. Free License (Education & Internal Use)
+You may use the prompts, pseudocode, and sample code:
+
+For educational or research purposes
+
+For personal projects
+
+For internal business systems that do not generate revenue
+
+B. Commercial License (Revenue-Generating Use)
+A paid license is required if you:
+
+Use the content in any commercial software product (sold or licensed)
+
+Use the content in SaaS, hosted systems, or internal tools that generate revenue
+
+Distribute or embed the prompts/code in other products
+
+Please contact the author for commercial licensing:
+https://theefficienttreeview.com/contact/
+
+2. CONDITIONS
+
+Any improvements or modifications to the prompts or code must be shared with the author.
+
+You may not sublicense, relicense, or redistribute modified versions without consent.
+
+This repository contains content subject to pending patents. Any license granted herein does not imply a waiver of patent rights.
+
+3. WARRANTY DISCLAIMER
+
+This content is provided "as is", without warranty of any kind, express or implied. The author disclaims all liability for any damages arising from the use or misuse of this content.

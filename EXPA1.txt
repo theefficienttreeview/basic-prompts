@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------
+// Part of *The Efficient Tree View* by Peder Myhre
+// © 2025 Peder Myhre. All rights reserved.
+//
+// Free for education, personal use, and non-commercial internal systems.
+// Commercial use requires a paid license. See LICENSE.txt for full terms.
+// Modifications must be shared back. Patent pending.
+// -----------------------------------------------------------------------
+
 Client Logic
 1.	Calculate Viewport Requirement
 Parameters to Coordinator
