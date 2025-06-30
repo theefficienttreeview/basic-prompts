@@ -1,3 +1,5 @@
+Client Logic
+1.	Calculate Viewport Requirement
 Parameters to Coordinator
 1.	Viewport Information
 2.	RefreshedNode (the Parent Node)
