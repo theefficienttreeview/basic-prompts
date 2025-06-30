@@ -1,12 +1,3 @@
-// -----------------------------------------------------------------------
-// Part of *The Efficient Tree View* by Peder Myhre
-// © 2025 Peder Myhre. All rights reserved.
-//
-// Free for education, personal use, and non-commercial internal systems.
-// Commercial use requires a paid license. See LICENSE.txt for full terms.
-// Modifications must be shared back. Patent pending.
-// -----------------------------------------------------------------------
-
 Operations Table Layout
 Column	Data Type	Partition	Description
 ID	Int/GUID		Auto-generated unique identifier (Primary Key)
