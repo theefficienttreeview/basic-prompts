@@ -1,4 +1,4 @@
-Logic Performed by Client Tree View
+Client Logic
 1.	Calculate Viewport Requirement
 a.	TreeView.RowsPerViewport = Math.ceil(ViewportHeight / RowHeight
 b.	TreeView.ColumnsPerViewport = Math.ceil(ViewportWidth / ColumnWidth
